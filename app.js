@@ -95,7 +95,7 @@
     els.crumb.textContent = tool().group;
     els.instruction.textContent = tool().instruction;
     els.uploadTitle.textContent = tool().image ? '選擇圖片檔案' : '選擇 PDF 檔案';
-    els.uploadHelp.textContent = tool().image ? '支援 JPG、PNG、WebP，可一次選取多張' : tool().multi ? '可一次選取多份 PDF' : '支援 PDF 格式';
+    els.uploadHelp.textContent = tool().image ? '支援 JPG、PNG、WebP；可直接按 Ctrl + V／⌘ + V 貼上圖片' : tool().multi ? '可一次選取多份 PDF' : '支援 PDF 格式';
     els.input.accept = tool().image ? '.jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp' : '.pdf,application/pdf';
     els.input.multiple = tool().multi;
     els.add.hidden = !tool().multi;
@@ -738,6 +738,20 @@
   els.browse.addEventListener('click', function (ev) { ev.stopPropagation(); if (!state.busy) els.input.click(); });
   els.add.addEventListener('click', function () { if (!state.busy) els.input.click(); });
   els.input.addEventListener('change', function () { uploadFiles(els.input.files); });
+  // 圖片轉 PDF 也接受「複製圖片」後直接貼上，無須先下載。
+  document.addEventListener('paste', function (event) {
+    if (state.tool !== 'images-pdf' || state.busy) return;
+    const target = event.target;
+    if (target && (target.isContentEditable || target.closest?.('input,textarea,[contenteditable="true"]'))) return;
+    const items = Array.from(event.clipboardData?.items || []);
+    const imageItem = items.find(function (item) { return item.kind === 'file' && /^image\/(png|jpeg|webp)$/i.test(item.type); });
+    const blob = imageItem?.getAsFile() || Array.from(event.clipboardData?.files || []).find(function (file) { return /^image\/(png|jpeg|webp)$/i.test(file.type); });
+    if (!blob) return;
+    event.preventDefault();
+    const extension = blob.type === 'image/jpeg' ? 'jpg' : blob.type === 'image/webp' ? 'webp' : 'png';
+    const pastedFile = new File([blob], '貼上圖片-' + Date.now() + '.' + extension, { type: blob.type });
+    uploadFiles([pastedFile]);
+  });
   els.clear.addEventListener('click', function () { if (!state.busy) { dispose(); render(); } });
   els.reset.addEventListener('click', function () { if (!state.busy) { dispose(); render(); } });
   els.all.addEventListener('click', function () { state.pages.forEach(function (p) { p.selected = true; }); renderPages(); updateAction(); });
