@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f6f5f1">
+  <meta name="description" content="免費的 PDF 線上工具：合併、拆分、旋轉、轉圖片、圖片轉 PDF、擷取文字。所有檔案都留在自己的瀏覽器。">
+  <title>PDF 小事務所｜合併、拆分、轉檔，一次完成</title>
+  <link rel="preconnect" href="https://cdnjs.cloudflare.com">
+  <link rel="preconnect" href="https://cdn.jsdelivr.net">
+  <link rel="stylesheet" href="./style.css">
+  <script defer src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+  <script defer src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script defer src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <script defer src="./app.js"></script>
+</head>
+<body>
+  <div class="shell">
+    <header class="topbar">
+      <a class="logo" href="./" aria-label="PDF 小事務所首頁">
+        <span class="logo-symbol" aria-hidden="true"><span></span><span></span><span></span><span></span></span>
+        <span>PDF <strong>小事務所</strong></span>
+      </a>
+      <div class="top-right"><span class="status-dot"></span> 免登入 · 免費使用</div>
+    </header>
+
+    <main>
+      <section class="intro">
+        <div class="eyebrow"><span class="eyebrow-line"></span> YOUR EVERYDAY PDF STUDIO</div>
+        <h1>PDF 的大小事，<br><span>在這裡就搞定。</span></h1>
+        <div class="intro-bottom">
+          <p>合併、拆分、旋轉、轉圖片。把麻煩的檔案工作，變成簡單的幾個步驟。</p>
+          <div class="privacy-label"><span class="privacy-mark">✳</span><span><strong>檔案不會上傳</strong><small>全部在你的瀏覽器內處理</small></span></div>
+        </div>
+      </section>
+
+      <section class="workspace" aria-label="PDF 處理工具">
+        <aside class="tool-panel">
+          <div class="panel-overline">選擇工具 <span>01 / 02</span></div>
+          <nav id="toolList" class="tool-list" aria-label="工具清單">
+            <button type="button" class="tool-btn active" data-tool="merge" aria-pressed="true"><span class="tool-icon">⊞</span><span class="tool-label"><strong>合併 PDF</strong><small>多份文件變一份</small></span><span class="tool-chevron">↗</span></button>
+            <button type="button" class="tool-btn" data-tool="split" aria-pressed="false"><span class="tool-icon">⌁</span><span class="tool-label"><strong>拆分 PDF</strong><small>擷取指定頁面</small></span><span class="tool-chevron">↗</span></button>
+            <button type="button" class="tool-btn" data-tool="rotate" aria-pressed="false"><span class="tool-icon">↻</span><span class="tool-label"><strong>旋轉 PDF</strong><small>調整頁面方向</small></span><span class="tool-chevron">↗</span></button>
+            <button type="button" class="tool-btn" data-tool="pdf-images" aria-pressed="false"><span class="tool-icon">▧</span><span class="tool-label"><strong>PDF 轉圖片</strong><small>輸出 JPG / PNG</small></span><span class="tool-chevron">↗</span></button>
+            <button type="button" class="tool-btn" data-tool="images-pdf" aria-pressed="false"><span class="tool-icon">▣</span><span class="tool-label"><strong>圖片轉 PDF</strong><small>把照片整理成文件</small></span><span class="tool-chevron">↗</span></button>
+            <button type="button" class="tool-btn" data-tool="extract" aria-pressed="false"><span class="tool-icon">≡</span><span class="tool-label"><strong>PDF 擷取文字</strong><small>匯出 TXT 純文字</small></span><span class="tool-chevron">↗</span></button>
+          </nav>
+          <div class="tool-panel-bottom"><span class="asterisk">✳</span> 不用安裝軟體，也不需要建立帳號。</div>
+        </aside>
+
+        <section class="editor-panel" aria-labelledby="toolTitle">
+          <div class="editor-head">
+            <div class="editor-head-copy"><div class="panel-overline">處理文件 <span>02 / 02</span></div><h2 id="toolTitle">合併 PDF</h2><p id="toolDescription">上傳兩份以上的 PDF，依照你想要的順序合成一份。</p></div>
+            <span class="step-indicator">WORKSPACE <span id="toolNumber">01</span></span>
+          </div>
+
+          <div id="dropzone" class="dropzone" role="button" tabindex="0" aria-label="選取或拖曳檔案">
+            <input id="fileInput" type="file" accept=".pdf,application/pdf" multiple hidden>
+            <div class="upload-illustration" aria-hidden="true"><div class="paper paper-back"></div><div class="paper paper-front"><span></span><span></span><span></span></div><div class="paper-plus">＋</div></div>
+            <strong id="dropTitle">拖曳 PDF 到這裡</strong>
+            <p>或是 <button id="pickFiles" type="button" class="text-link">選擇電腦裡的檔案</button></p>
+            <span id="fileHint" class="drop-hint">支援 PDF 格式，可一次選取多個檔案</span>
+          </div>
+
+          <div id="selectedSection" class="selected-section" hidden>
+            <div class="section-title"><span>已選擇檔案 <em id="fileCount">0</em></span><button id="clearFiles" type="button" class="small-button">全部清除</button></div>
+            <ol id="fileList" class="file-list"></ol>
+            <div id="sortHint" class="sort-hint">使用箭頭調整順序，完成後再進行合併。</div>
+          </div>
+
+          <div id="optionsSection" class="options-section" hidden>
+            <div class="section-title"><span>輸出設定</span></div>
+            <div id="optionsContent"></div>
+          </div>
+
+          <div id="notice" class="notice" role="status" aria-live="polite" hidden></div>
+
+          <div class="editor-footer">
+            <div class="editor-footer-tip"><span>↗</span><span id="footerTip">合併後的檔案會直接下載到你的裝置。</span></div>
+            <button id="runButton" type="button" class="primary-button" disabled><span id="runText">開始合併</span><span id="runArrow">↗</span></button>
+          </div>
+        </section>
+      </section>
+      <section class="closing"><span class="closing-rule"></span><p>文件歸你，選擇權也歸你。<br><small>輕量、直覺、沒有多餘步驟。</small></p><span class="closing-rule"></span></section>
+    </main>
+
+    <footer class="site-footer"><span>PDF 小事務所 <b>© 2026</b></span><span>Made for the little things that matter. <a href="https://github.com/tougapui/pdf-toolbox" target="_blank" rel="noopener noreferrer">GitHub ↗</a></span></footer>
+  </div>
+</body>
+</html>
