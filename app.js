@@ -6,7 +6,7 @@
     merge: { title: '合併 PDF', group: '頁面管理', desc: '將多份 PDF 合成一份，也能從頁面預覽中調整順序或移除不需要的頁面。', multi: true, image: false, verb: '合併並下載 PDF', instruction: '預設保留所有頁面。點一下縮圖可取消選取，拖曳可調整合併後的頁面順序。', groupReorder: true },
     split: { title: '拆分／擷取頁面', group: '頁面管理', desc: '上傳 PDF 後，直接勾選要拆出的頁面，再選 PDF、JPG 或 PNG。', multi: false, image: false, verb: '下載選取頁面', instruction: '點選要擷取的頁面；可用「全選」或「全部取消」快速調整。', groupReorder: false },
     organize: { title: '整理 PDF', group: '頁面管理', desc: '拖曳重新排序、旋轉、複製或刪除頁面，整理好後下載新 PDF。', multi: true, image: false, verb: '下載整理後 PDF', instruction: '拖曳縮圖可重排；縮圖下方可旋轉、複製或刪除頁面。', groupReorder: true },
-    rotate: { title: '旋轉 PDF', group: '頁面管理', desc: '從頁面縮圖勾選要旋轉的頁面，其餘頁面保持原樣。', multi: false, image: false, verb: '下載旋轉後 PDF', instruction: '預設選取全部頁面，取消不需要旋轉的頁面即可。', groupReorder: false },
+    rotate: { title: '旋轉 PDF', group: '頁面管理', desc: '每一頁都有自己的「左轉 90°」按鈕，可以分別調整方向。', multi: false, image: false, verb: '下載旋轉後 PDF', instruction: '每頁下方都有「↶ 左轉 90°」，點一次只轉該頁 90°，再點會繼續左轉。', groupReorder: false },
     number: { title: '新增頁碼', group: '頁面管理', desc: '選擇要加上頁碼的頁面及顯示位置，原始 PDF 內容不變。', multi: false, image: false, verb: '下載加頁碼 PDF', instruction: '勾選要加頁碼的頁面，並在下方調整頁碼位置。', groupReorder: false },
     'pdf-images': { title: 'PDF 轉圖片', group: '格式轉換', desc: '勾選 PDF 頁面並轉為 JPG 或 PNG，多頁會打包成 ZIP。', multi: false, image: false, verb: '下載圖片', instruction: '直接勾選要轉換的頁面，並在下方選擇圖片格式。', groupReorder: false },
     'images-pdf': { title: '圖片轉 PDF', group: '格式轉換', desc: '將 JPG、PNG、WebP 圖片變成 PDF，每張圖片就是一頁。', multi: true, image: true, verb: '下載 PDF', instruction: '可拖曳調整圖片順序，點縮圖取消不需要加入 PDF 的圖片。', groupReorder: true },
@@ -99,6 +99,10 @@
     els.input.accept = tool().image ? '.jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp' : '.pdf,application/pdf';
     els.input.multiple = tool().multi;
     els.add.hidden = !tool().multi;
+    els.all.hidden = name === 'rotate';
+    els.none.hidden = name === 'rotate';
+    const toolDivider = document.querySelector('.toolbar-divider');
+    if (toolDivider) toolDivider.hidden = name === 'rotate';
     document.querySelectorAll('.nav-item').forEach(function (btn) {
       const active = btn.dataset.tool === name;
       btn.classList.toggle('active', active);
@@ -201,19 +205,28 @@
     state.pages.forEach(function (p, i) {
       const source = sourceFor(p); if (!source) return;
       const card = document.createElement('article');
-      card.className = 'page-card' + (p.selected ? ' selected' : '');
+      card.className = 'page-card' + (p.selected && state.tool !== 'rotate' ? ' selected' : '') + (state.tool === 'rotate' ? ' rotate-page-card' : '');
       card.dataset.pageId = p.id;
       card.draggable = reorderable;
-      const preview = document.createElement('div'); preview.className = 'page-preview'; preview.setAttribute('role', 'button'); preview.tabIndex = 0;
-      preview.setAttribute('aria-label', '第 ' + (p.index + 1) + ' 頁，' + (p.selected ? '已選取' : '未選取') + '，點擊切換選取');
+      const preview = document.createElement('div'); preview.className = 'page-preview';
+      const rotateMode = state.tool === 'rotate';
+      preview.setAttribute('role', rotateMode ? 'img' : 'button'); preview.tabIndex = rotateMode ? -1 : 0;
+      preview.setAttribute('aria-label', rotateMode
+        ? '第 ' + (p.index + 1) + ' 頁預覽，請使用下方左轉按鈕調整方向'
+        : '第 ' + (p.index + 1) + ' 頁，' + (p.selected ? '已選取' : '未選取') + '，點擊切換選取');
       const mark = document.createElement('span'); mark.className = 'selection-check'; mark.textContent = '✓';
       const placeholder = document.createElement('span'); placeholder.className = 'page-placeholder'; placeholder.textContent = '預覽載入中…';
-      preview.append(mark, placeholder);
-      function toggle() { if (!state.busy) { p.selected = !p.selected; renderPages(); updateAction(); } }
-      preview.addEventListener('click', toggle);
-      preview.addEventListener('keydown', function (event) { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); toggle(); } });
+      if (rotateMode) preview.append(placeholder);
+      else preview.append(mark, placeholder);
+      function toggle() { if (!state.busy && !rotateMode) { p.selected = !p.selected; renderPages(); updateAction(); } }
+      if (!rotateMode) {
+        preview.addEventListener('click', toggle);
+        preview.addEventListener('keydown', function (event) { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); toggle(); } });
+      }
       const meta = document.createElement('div'); meta.className = 'page-meta';
-      const num = document.createElement('span'); num.textContent = '第 ' + (p.index + 1) + ' 頁' + (p.turn ? ' · ' + p.turn + '°' : '');
+      const num = document.createElement('span');
+      const turnLabel = rotateMode ? (p.turn === 270 ? ' · 左轉 90°' : p.turn === 180 ? ' · 旋轉 180°' : p.turn === 90 ? ' · 右轉 90°' : '') : (p.turn ? ' · ' + p.turn + '°' : '');
+      num.textContent = '第 ' + (p.index + 1) + ' 頁' + turnLabel;
       const from = document.createElement('span'); from.className = 'page-source'; from.textContent = state.sources.length > 1 ? filename(source.file).slice(0, 11) : (i + 1) + ' / ' + state.pages.length;
       meta.append(num, from);
       card.append(preview, meta);
@@ -223,6 +236,15 @@
         actions.append(pageAction('⧉', '複製這一頁', function () { state.pages.splice(i + 1, 0, { id: uniqueId(), sourceId: p.sourceId, index: p.index, selected: true, turn: p.turn }); renderPages(); updateAction(); }, false));
         actions.append(pageAction('×', '刪除這一頁', function () { state.pages.splice(i, 1); renderPages(); updateAction(); }, true));
         card.append(actions);
+      }
+      if (rotateMode) {
+        const actions = document.createElement('div'); actions.className = 'page-card-actions rotate-page-actions';
+        const left = pageAction('↶ 左轉 90°', '第 ' + (p.index + 1) + ' 頁左轉 90 度', function () {
+          p.turn = (p.turn + 270) % 360;
+          renderPages(); updateAction();
+        }, false);
+        left.classList.add('page-rotate-button');
+        actions.append(left); card.append(actions);
       }
       if (reorderable) {
         card.addEventListener('dragstart', function (ev) {
@@ -282,7 +304,7 @@
   function insertThumb(card, url, turn) {
     const preview = card.querySelector('.page-preview'); if (!preview || !url) return;
     const image = document.createElement('img'); image.src = url; image.alt = 'PDF 頁面縮圖'; image.loading = 'lazy';
-    image.style.transform = 'rotate(' + turn + 'deg)';
+    image.style.transform = 'rotate(' + turn + 'deg) scale(' + (turn % 180 ? 0.75 : 1) + ')';
     const existing = preview.querySelector('img,.page-placeholder'); if (existing) existing.replaceWith(image);
   }
   function pumpThumbnails() {
@@ -372,8 +394,6 @@
       $('toolTitle').textContent = TOOLS[state.tool].title;
     } else if (state.tool === 'images-pdf') {
       fields.append(setting('紙張大小', selectField('paperSize', [['auto','符合原圖比例'],['a4','A4（自動判斷方向）']])));
-    } else if (state.tool === 'rotate') {
-      fields.append(setting('順時針旋轉', selectField('angle', [['90','90°'],['180','180°'],['270','270°']])));
     } else if (state.tool === 'number') {
       fields.append(setting('頁碼位置', selectField('numberPos', [['bottom','下方置中'],['bottom-right','右下角'],['top','上方置中'],['top-right','右上角']])));
       fields.append(setting('起始頁碼', numberField('numberStart', 1, 0, 999999)));
@@ -412,13 +432,17 @@
 
   function updateAction() {
     const selected = countSelected(), total = state.pages.length;
-    els.selected.textContent = state.tool === 'rotate' || state.tool === 'watermark' || state.tool === 'number' ? '要處理 ' + selected + ' / ' + total + ' 頁' : '已選擇 ' + selected + ' / ' + total + ' 頁';
+    const rotated = state.pages.filter(function (page) { return page.turn !== 0; }).length;
+    els.selected.textContent = state.tool === 'rotate' ? '已調整 ' + rotated + ' / ' + total + ' 頁'
+      : state.tool === 'watermark' || state.tool === 'number' ? '要處理 ' + selected + ' / ' + total + ' 頁'
+      : '已選擇 ' + selected + ' / ' + total + ' 頁';
     let label = tool().verb;
     if (state.tool === 'split') label = state.outputFormat === 'pdf' ? (state.splitSeparate ? '下載各頁 PDF（ZIP）' : '下載選取 PDF') : '下載 ' + state.outputFormat.toUpperCase() + ' 圖片';
     if (state.tool === 'pdf-images') label = '下載 ' + state.outputFormat.toUpperCase() + ' 圖片';
     els.runText.textContent = state.busy ? '處理中…' : label;
-    els.actionHint.textContent = selected ? (state.tool === 'split' || state.tool === 'pdf-images' ? '已勾選的頁面將被輸出' : '在本機處理，完成後直接下載') : '請先勾選至少一頁';
-    els.run.disabled = state.busy || !state.sources.length || selected === 0 || (state.tool === 'merge' && state.sources.length < 1);
+    els.actionHint.textContent = state.tool === 'rotate' ? '每頁獨立左轉，其他頁面不會改動'
+      : selected ? (state.tool === 'split' || state.tool === 'pdf-images' ? '已勾選的頁面將被輸出' : '在本機處理，完成後直接下載') : '請先勾選至少一頁';
+    els.run.disabled = state.busy || !state.sources.length || (state.tool === 'rotate' ? rotated === 0 : selected === 0) || (state.tool === 'merge' && state.sources.length < 1);
     els.all.disabled = state.busy; els.none.disabled = state.busy;
   }
 
@@ -554,12 +578,18 @@
     return '完成！已輸出 ' + pages.length + ' 頁 PDF。';
   }
   async function outputRotate() {
-    const pdf = await simpleTransform(async function (page) {
-      const angle = Number($('angle').value);
-      page.setRotation(PDFLib.degrees((page.getRotation().angle + angle) % 360));
+    const src = state.sources[0];
+    const pdf = await PDFLib.PDFDocument.load(new Uint8Array(await src.file.arrayBuffer()), { updateMetadata: false });
+    let changed = 0;
+    state.pages.forEach(function (p) {
+      if (!p.turn) return;
+      const page = pdf.getPage(p.index);
+      page.setRotation(PDFLib.degrees((page.getRotation().angle + p.turn) % 360));
+      changed += 1;
     });
-    download(await pdf.save(), filename(state.sources[0].file) + '_旋轉.pdf');
-    return '完成！已旋轉 ' + countSelected() + ' 頁。';
+    if (!changed) throw new Error('請先在至少一頁按下「左轉 90°」。');
+    download(await pdf.save(), filename(src.file) + '_旋轉.pdf');
+    return '完成！已獨立調整 ' + changed + ' 頁的方向，其他頁面保持原樣。';
   }
   async function outputPageNumber() {
     const start = Number($('numberStart').value);
