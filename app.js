@@ -177,7 +177,7 @@
     const has = state.sources.length > 0;
     els.upload.hidden = has;
     els.workspace.hidden = !has;
-    els.settings.hidden = !has;
+    els.settings.hidden = !has || !els.settingsFields.firstElementChild || !els.settingsFields.firstElementChild.childElementCount;
     els.actionBar.hidden = !has;
     els.reset.hidden = !has;
     if (!has) { els.input.value = ''; updateAction(); return; }
@@ -439,7 +439,7 @@
     const cache = new Map(); const src = await docFor(state.sources[0], cache);
     const selected = state.pages.filter(function (p) { return p.selected; });
     for (let i = 0; i < selected.length; i += 1) {
-      await transform(src.getPage(selected[i].index), selected[i], i, selected.length);
+      await transform(src.getPage(selected[i].index), selected[i], i, selected.length, src);
     }
     return src;
   }
@@ -546,7 +546,7 @@
     const start = Number($('numberStart').value);
     if (!Number.isInteger(start) || start < 0 || start > 999999) throw new Error('請輸入正確的起始頁碼。');
     const pos = $('numberPos').value, src = state.sources[0];
-    const pdf = await simpleTransform(async function (page, p) {
+    const pdf = await simpleTransform(async function (page, p, i, n, pdf) {
       const { width, height } = page.getSize();
       const pageText = String(start + p.index);
       const font = await pdf.embedFont(PDFLib.StandardFonts.Helvetica);
@@ -577,7 +577,7 @@
     const png = new Uint8Array(await blob.arrayBuffer());
     const opacity = Number($('watermarkOpacity').value);
     const deg = Number($('watermarkRotation').value);
-    const pdf = await simpleTransform(async function (page) {
+    const pdf = await simpleTransform(async function (page, p, i, n, pdf) {
       const image = await pdf.embedPng(png); const { width, height } = page.getSize();
       const drawWidth = Math.min(width * .75, image.width * .35);
       const drawHeight = drawWidth * image.height / image.width;
