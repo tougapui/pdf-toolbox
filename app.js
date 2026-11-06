@@ -65,7 +65,7 @@
     updateAction();
   }
   function newPage(sourceId, index) {
-    return { id: uniqueId(), sourceId: sourceId, index: index, selected: state.tool !== 'split', turn: 0 };
+    return { id: uniqueId(), sourceId: sourceId, index: index, selected: state.tool !== 'split' && state.tool !== 'rotate', turn: 0 };
   }
   function revokeThumbnails() {
     if (state.thumbObserver) { state.thumbObserver.disconnect(); state.thumbObserver = null; }
