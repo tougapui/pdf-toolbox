@@ -116,3 +116,19 @@ button { font-weight: 600; }
 @media (prefers-reduced-motion: reduce) {
   button, a { transition: none !important; }
 }
+/* 旋轉工具：選取頁面後只透過工具列的單一控制操作。 */
+.rotate-selected-button {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  min-height: 40px; border-radius: 8px; padding: 8px 15px;
+  font-size: 15px; font-weight: 740;
+  border: 1px solid #A7C68C; color: #284D30; background: #EAF6DE;
+}
+.rotate-selected-button:hover:not(:disabled) { background: #C5F36B; border-color: #7DB34D; color: #253B28; }
+.rotate-selected-button:disabled { opacity: .42; cursor: not-allowed; }
+.rotate-selected-button .rotate-arrow { font-size: 22px; line-height: 1; }
+.rotate-page-card .page-preview { cursor: pointer; }
+.rotate-page-card .selection-check { visibility: visible; }
+@media(max-width: 720px) {
+ .rotate-selected-button { flex: 1 1 160px; min-height: 44px; font-size: 14px; }
+ .page-toolbar-right { flex-wrap: wrap; }
+}
