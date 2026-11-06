@@ -257,45 +257,109 @@
     ui.download.disabled=false;
     ui.summary.textContent=label||'可以下載結果';
   }
-  function repairPixels(img,maskRGBA,width,height){
-    const length=width*height,mask=new Uint8Array(length),queued=new Uint8Array(length);
-    const data=img.data;
-    let selected=0,head=0,tail=0;
-    for(let i=0;i<length;i++){if(maskRGBA[i*4+3]>45){mask[i]=1;selected++;}}
-    if(!selected)throw new Error('請先用筆刷或框選要修補的區域。');
-    if(selected>350000)throw new Error('選取範圍太大，請縮小筆刷或分次處理。');
-    if(selected>=length*.5)throw new Error('選取區域已超過圖片的一半，無法依周圍畫面進行修補。');
-    const queue=new Int32Array(selected+1);
-    const dirs=[-1,1,-width,width,-width-1,-width+1,width-1,width+1];
-    for(let i=0;i<length;i++)if(mask[i]){
-      const x=i%width,y=(i/width)|0;
-      if ((x>0&&!mask[i-1])||(x<width-1&&!mask[i+1])||(y>0&&!mask[i-width])||(y<height-1&&!mask[i+width])){
-        queue[tail++]=i;queued[i]=1;
+  function repairPixels(img, maskRGBA, width, height) {
+    // 使用邊界向內填補；保留不透明原圖的 Alpha，避免修補處出現透明破洞。
+    const pixels = width * height;
+    const data = img.data;
+    const original = new Uint8ClampedArray(data);
+    const selectedMask = new Uint8Array(pixels);
+    let selected = 0;
+    for (let i = 0; i < pixels; i += 1) {
+      if (maskRGBA[i * 4 + 3] > 22) {
+        selectedMask[i] = 1;
+        selected += 1;
       }
     }
-    if(!tail)throw new Error('選取範圍沒有可供修補的周圍像素。');
-    const nbs=[[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[1,-1],[-1,1],[1,1],[-2,0],[2,0],[0,-2],[0,2]];
-    while(head<tail){
-      const i=queue[head++],x=i%width,y=(i/width)|0;
-      if(!mask[i])continue;
-      let sumR=0,sumG=0,sumB=0,sumA=0,weight=0;
-      for(const [dx,dy] of nbs){
-        const xx=x+dx, yy=y+dy; if(xx<0||xx>=width||yy<0||yy>=height)continue;
-        const n=yy*width+xx;if(mask[n])continue;
-        const w=1/(1+dx*dx+dy*dy);const o=n*4;
-        sumR+=data[o]*w;sumG+=data[o+1]*w;sumB+=data[o+2]*w;sumA+=data[o+3]*w;weight+=w;
-      }
-      if(weight===0)continue;
-      const o=i*4;data[o]=sumR/weight;data[o+1]=sumG/weight;data[o+2]=sumB/weight;data[o+3]=sumA/weight;
-      mask[i]=0;
-      for(const d of dirs){
-        const n=i+d;if(n<0||n>=length||!mask[n]||queued[n])continue;
-        const nx=n%width;
-        if(Math.abs(nx-x)>1)continue;
-        queued[n]=1;queue[tail++]=n;
+    if (!selected) throw new Error('請先用筆刷或框選要修補的區域。');
+    if (selected > 350000) throw new Error('選取範圍太大，請縮小筆刷或分次處理。');
+    if (selected >= pixels * .5) throw new Error('選取範圍超過圖片一半，附近資料不足，無法可靠修補。');
+
+    // 補上標記邊緣一圈，避免筆刷抗鋸齒留下浮水印的彩色邊。
+    const inputMask = selectedMask.slice();
+    for (let i = 0; i < pixels; i += 1) {
+      if (!inputMask[i]) continue;
+      const x = i % width, y = Math.floor(i / width);
+      const near = [
+        x > 0 ? i - 1 : -1,
+        x + 1 < width ? i + 1 : -1,
+        y > 0 ? i - width : -1,
+        y + 1 < height ? i + width : -1
+      ];
+      for (const n of near) {
+        if (n >= 0 && !selectedMask[n]) { selectedMask[n] = 1; selected += 1; }
       }
     }
-    return selected;
+    if (selected >= pixels * .5 || selected > 400000) throw new Error('修補區域太大，請分次處理。');
+
+    // 由已知的周圍影像起始。圖片邊界外不是有效的取樣來源。
+    const queue = new Int32Array(selected);
+    const queued = new Uint8Array(pixels);
+    let head = 0, tail = 0, filled = 0;
+    const offsets = [
+      [-1,0],[1,0],[0,-1],[0,1],
+      [-1,-1],[1,-1],[-1,1],[1,1]
+    ];
+    for (let y = 0; y < height; y += 1) {
+      for (let x = 0; x < width; x += 1) {
+        const i = y * width + x;
+        if (!selectedMask[i]) continue;
+        let boundary = false;
+        for (const [dx,dy] of offsets) {
+          const xx = x + dx, yy = y + dy;
+          if (xx < 0 || yy < 0 || xx >= width || yy >= height) continue;
+          if (!selectedMask[yy * width + xx]) { boundary = true; break; }
+        }
+        if (boundary) { queue[tail++] = i; queued[i] = 1; }
+      }
+    }
+    if (!tail) throw new Error('選取區域沒有足夠的周圍影像，請縮小選取範圍。');
+
+    const samples = [
+      [-1,0],[1,0],[0,-1],[0,1],[-1,-1],[1,-1],[-1,1],[1,1],
+      [-2,0],[2,0],[0,-2],[0,2],[-2,-1],[2,-1],[-2,1],[2,1],
+      [-1,-2],[1,-2],[-1,2],[1,2]
+    ];
+    while (head < tail) {
+      const i = queue[head++], x = i % width, y = Math.floor(i / width);
+      if (!selectedMask[i]) continue;
+      let r = 0, g = 0, b = 0, alpha = 0, weight = 0;
+      for (const [dx,dy] of samples) {
+        const xx = x + dx, yy = y + dy;
+        if (xx < 0 || yy < 0 || xx >= width || yy >= height) continue;
+        const n = yy * width + xx;
+        if (selectedMask[n]) continue;
+        const off = n * 4;
+        const a = data[off + 3] / 255;
+        if (a < .03) continue;
+        const w = a / (dx * dx + dy * dy);
+        r += data[off] * w;
+        g += data[off + 1] * w;
+        b += data[off + 2] * w;
+        alpha += data[off + 3] * w;
+        weight += w;
+      }
+      if (!weight) continue;
+      const off = i * 4;
+      data[off] = r / weight;
+      data[off + 1] = g / weight;
+      data[off + 2] = b / weight;
+      // 原圖不透明的區域永遠保持不透明，不可因透明鄰近像素留下洞。
+      data[off + 3] = Math.max(original[off + 3], alpha / weight);
+      selectedMask[i] = 0;
+      filled += 1;
+      for (const [dx,dy] of offsets) {
+        const xx = x + dx, yy = y + dy;
+        if (xx < 0 || yy < 0 || xx >= width || yy >= height) continue;
+        const n = yy * width + xx;
+        if (selectedMask[n] && !queued[n]) {
+          queued[n] = 1;
+          queue[tail++] = n;
+        }
+      }
+    }
+    // 若透明背景等狀況造成修補不完整，禁止輸出破損結果。
+    if (filled !== selected) throw new Error('所選區域附近缺少可用的影像像素。沒有修改原圖，請縮小範圍再試一次。');
+    return filled;
   }
   async function applyRepair(){
     const w=state.working.width,h=state.working.height;
