@@ -301,7 +301,6 @@
     const w=state.working.width,h=state.working.height;
     const mask=canvasContext(ui.maskCanvas).getImageData(0,0,w,h);
     const img=canvasContext(state.working).getImageData(0,0,w,h);
-    const before=canvasContext(state.working).getImageData(0,0,w,h);
     const count=repairPixels(img,mask.data,w,h);
     saveUndo();canvasContext(state.working).putImageData(img,0,0);
     resetMask();drawWorking();
@@ -312,23 +311,25 @@
   async function applyCrop(){
     const rect=state.cropRect;
     if(!rect||rect.width<4||rect.height<4)throw new Error('請先拖曳框出要保留的範圍。');
+    const downloadFormat=currentFormat();
     saveUndo();
     const trimmed=document.createElement('canvas');trimmed.width=rect.width;trimmed.height=rect.height;
     canvasContext(trimmed).drawImage(state.working,rect.x,rect.y,rect.width,rect.height,0,0,rect.width,rect.height);
     state.working=trimmed;
     resetMask();drawWorking();configureSettings();
-    const ext=currentFormat();const blob=await toBlob(state.working,ext,.92);
+    const ext=downloadFormat;const blob=await toBlob(state.working,ext,.92);
     placeBlob(blob,ext,'裁切尺寸：'+rect.width+' × '+rect.height);
     return '裁切完成，請檢查圖片預覽。';
   }
   async function applyResize(){
     const w=Number($('outputWidth')?.value),h=Number($('outputHeight')?.value);
     if(!Number.isInteger(w)||!Number.isInteger(h)||w<1||h<1||w>12000||h>12000||w*h>20000000)throw new Error('請輸入有效尺寸（最長邊 12000 像素、總像素不超過 2000 萬）。');
+    const downloadFormat=currentFormat();
     saveUndo();
     const resized=document.createElement('canvas');resized.width=w;resized.height=h;
     canvasContext(resized).drawImage(state.working,0,0,w,h);state.working=resized;
     resetMask();drawWorking();configureSettings();
-    const ext=currentFormat();const blob=await toBlob(state.working,ext,.92);
+    const ext=downloadFormat;const blob=await toBlob(state.working,ext,.92);
     placeBlob(blob,ext,'調整完成：'+w+' × '+h);
     return '尺寸已調整為 '+w+' × '+h+' 像素。';
   }
