@@ -2,7 +2,7 @@
 (() => {
   'use strict';
   const tools = {
-    repair: { title: '圖片局部修補', description: '用筆刷或框選指定區域，以周圍畫面補上。可處理自己有權修改的圖片浮水印或污點。', action: '套用修補', tip: '先塗抹要處理的部分。這是免 AI 的周圍像素修補，複雜背景可能留下痕跡。' },
+    repair: { title: '圖片局部修補（基礎）', description: '僅適合純色或簡單背景的污點。複雜圖片、文字及浮水印需要更完整的修補技術。', action: '套用基本修補', tip: '先標記要處理的範圍。免 AI 版本只能估算附近顏色，無法重建被遮住的細節。' },
     compress: { title: '壓縮圖片', description: '調整影像品質及最長邊尺寸，壓縮後顯示與原始大小的比較。', action: '開始壓縮', tip: '可先試 WebP 或 JPG，視覺品質和檔案大小取決於圖片內容。' },
     convert: { title: '轉換圖片格式', description: '支援 JPG、PNG、WebP 互轉。PNG 可保留透明背景，JPG 會填成白底。', action: '開始轉換', tip: '轉換格式不代表一定縮小，圖片仍由瀏覽器本機處理。' },
     resize: { title: '調整圖片尺寸', description: '輸入寬度與高度，可鎖定比例，避免把影像拉變形。', action: '調整尺寸', tip: '建議維持比例；放大圖片不會憑空增加真實細節。' },
@@ -120,6 +120,8 @@
     ui.original.textContent = '比較原圖';
     ui.heading.textContent = tools[key].title; ui.description.textContent = tools[key].description;
     ui.tip.textContent = tools[key].tip;
+    const advanced = $('advancedRepair');
+    if (advanced) advanced.hidden = key !== 'repair';
     ui.repairControls.hidden = !['repair','crop'].includes(key);
     ui.repairControls.querySelector('.repair-control-group').hidden = key === 'crop';
     ui.repairControls.querySelector('.brush-label').hidden = key === 'crop';
