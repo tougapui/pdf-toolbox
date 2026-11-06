@@ -546,10 +546,12 @@
     const start = Number($('numberStart').value);
     if (!Number.isInteger(start) || start < 0 || start > 999999) throw new Error('請輸入正確的起始頁碼。');
     const pos = $('numberPos').value, src = state.sources[0];
+    let cachedFont = null;
     const pdf = await simpleTransform(async function (page, p, i, n, pdf) {
       const { width, height } = page.getSize();
       const pageText = String(start + p.index);
-      const font = await pdf.embedFont(PDFLib.StandardFonts.Helvetica);
+      if (!cachedFont) cachedFont = await pdf.embedFont(PDFLib.StandardFonts.Helvetica);
+      const font = cachedFont;
       const size = 11, tw = font.widthOfTextAtSize(pageText, size);
       const x = pos.endsWith('right') ? width - tw - 32 : (width - tw) / 2;
       const y = pos.startsWith('top') ? height - 31 : 26;
@@ -577,8 +579,10 @@
     const png = new Uint8Array(await blob.arrayBuffer());
     const opacity = Number($('watermarkOpacity').value);
     const deg = Number($('watermarkRotation').value);
+    let cachedImage = null;
     const pdf = await simpleTransform(async function (page, p, i, n, pdf) {
-      const image = await pdf.embedPng(png); const { width, height } = page.getSize();
+      if (!cachedImage) cachedImage = await pdf.embedPng(png);
+      const image = cachedImage; const { width, height } = page.getSize();
       const drawWidth = Math.min(width * .75, image.width * .35);
       const drawHeight = drawWidth * image.height / image.width;
       const rad = deg * Math.PI / 180;
