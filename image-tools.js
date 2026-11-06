@@ -25,7 +25,7 @@
     tool: 'repair', file: null, original: document.createElement('canvas'),
     working: document.createElement('canvas'), context: null, selecting: false, mode: 'brush',
     rectStart: null, cropRect: null, beforeMask: null, selectionHistory: [],
-    edits: [], comparing: false, readyBlob: null, readyExtension: null, busy: false,
+    edits: [], comparing: false, preview: null, readyBlob: null, readyExtension: null, busy: false,
     lastObjectURL: null, generation: 0
   };
 
@@ -55,17 +55,17 @@
     return false;
   }
   function drawWorking() {
-    const canvas = ui.canvas, src = state.comparing ? state.original : state.working;
+    const canvas = ui.canvas, src = state.comparing ? state.original : (state.preview || state.working);
     canvas.width = src.width; canvas.height = src.height;
     const context = canvasContext(canvas);
     context.clearRect(0, 0, canvas.width, canvas.height);
     context.drawImage(src, 0, 0);
     ui.canvases.style.width = Math.min(1000, canvas.width) + 'px';
     ui.maskCanvas.style.visibility = state.comparing ? 'hidden' : 'visible';
-    ui.dimensions.textContent = state.working.width + ' × ' + state.working.height + ' px';
+    ui.dimensions.textContent = src.width + ' × ' + src.height + ' px';
   }
   function invalidateOutput() {
-    state.readyBlob = null; state.readyExtension = null; ui.download.disabled = true;
+    state.readyBlob = null; state.readyExtension = null; state.preview = null; ui.download.disabled = true;
     clearFeedback();
   }
   function currentFormat() { return $('imgFormat')?.value || (state.file?.type === 'image/png' ? 'png' : 'jpg'); }
@@ -116,7 +116,7 @@
   function switchTool(key, updateURL = true) {
     if (!tools[key] || state.busy) return;
     state.tool = key;
-    state.comparing = false; ui.original.setAttribute('aria-pressed', 'false');
+    state.comparing = false; state.preview = null; ui.original.setAttribute('aria-pressed', 'false');
     ui.original.textContent = '比較原圖';
     ui.heading.textContent = tools[key].title; ui.description.textContent = tools[key].description;
     ui.tip.textContent = tools[key].tip;
@@ -160,7 +160,7 @@
       state.file=file; state.working.width=w;state.working.height=h;state.original.width=w;state.original.height=h;
       canvasContext(state.working).drawImage(img,0,0,w,h);
       canvasContext(state.original).drawImage(img,0,0,w,h);
-      state.edits=[];state.readyBlob=null;state.readyExtension=null;
+      state.edits=[];state.preview=null;state.readyBlob=null;state.readyExtension=null;
       state.comparing=false;
       resetMask();drawWorking();configureSettings();
       ui.filename.textContent=file.name;
@@ -174,7 +174,7 @@
   }
   function resetAll() {
     if (state.busy) return;
-    state.generation++;state.file=null;state.edits=[];state.readyBlob=null;state.readyExtension=null;
+    state.generation++;state.file=null;state.edits=[];state.preview=null;state.readyBlob=null;state.readyExtension=null;
     state.comparing=false;resetMask();ui.input.value='';
     ui.upload.hidden=false;ui.workspace.hidden=true;ui.settings.hidden=true;ui.actions.hidden=true;ui.reset.hidden=true;
     clearFeedback();
@@ -240,7 +240,7 @@
   function undoEdit(){
     if(state.busy||!state.edits.length)return;
     state.working=state.edits.pop();
-    resetMask();state.comparing=false;drawWorking();configureSettings();invalidateOutput();
+    state.preview=null;resetMask();state.comparing=false;drawWorking();configureSettings();invalidateOutput();
     feedback('已還原上一個編輯步驟。');
   }
   async function toBlob(canvas,format,quality){
@@ -333,9 +333,20 @@
     placeBlob(blob,ext,'調整完成：'+w+' × '+h);
     return '尺寸已調整為 '+w+' × '+h+' 像素。';
   }
+  async function previewOutput(blob){
+    try {
+      const image=await createImageBitmap(blob);
+      const canvas=document.createElement('canvas');canvas.width=image.width;canvas.height=image.height;
+      canvasContext(canvas).drawImage(image,0,0);image.close();
+      state.preview=canvas;drawWorking();
+    }catch(err){
+      console.warn('無法顯示壓縮後預覽，但檔案仍可下載：',err);
+    }
+  }
   async function applyConvert(){
     const ext=currentFormat();const blob=await toBlob(state.working,ext,.92);
     placeBlob(blob,ext,'轉檔完成：'+formatBytes(blob.size));
+    await previewOutput(blob);
     return '已轉為 '+ext.toUpperCase()+'，檔案大小 '+formatBytes(blob.size)+'。';
   }
   async function applyCompress(){
@@ -349,6 +360,7 @@
     const difference=state.file.size-blob.size;
     const percent=state.file.size>0?Math.abs(difference/state.file.size*100).toFixed(1):'0.0';
     placeBlob(blob,format,'原檔 '+formatBytes(state.file.size)+' → '+formatBytes(blob.size));
+    await previewOutput(blob);
     return difference>=0?'壓縮完成，約減少 '+percent+'%（'+formatBytes(blob.size)+'）。':'輸出 '+formatBytes(blob.size)+'，比原始檔大 '+percent+'%。可降低品質或尺寸再試。';
   }
   async function apply(){
