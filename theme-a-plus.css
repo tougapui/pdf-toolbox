@@ -1,0 +1,198 @@
+/* A+ 主題：紙白 × 石墨 × 鼠尾草綠 × 萊姆綠
+   只修改介面樣式，不更動 PDF／圖片處理流程。 */
+:root {
+  --surface: #FFFFFF;
+  --canvas: #FAFAF8;
+  --sidebar-bg: #F3F5F0;
+  --ink: #252C29;
+  --text-muted: #68766C;
+  --sage: #426A59;
+  --lime: #C5F36B;
+  --lime-pale: #F1F8E8;
+  --line: #E2E7DF;
+  background: var(--canvas);
+  color: var(--ink);
+  color-scheme: light;
+}
+body { background: var(--canvas); color: var(--ink); }
+button, input, select { accent-color: var(--sage); }
+button { transition: background-color .16s ease, border-color .16s ease, color .16s ease, box-shadow .16s ease; }
+a { transition: color .16s ease, background-color .16s ease; }
+:focus-visible { outline: 3px solid #A0DB44; outline-offset: 3px; }
+
+/* 主視覺不使用亮色大面積鋪底，單一圖示保留最小必要細節。 */
+.header { background: #FFFFFF; border-color: var(--line); }
+.brand { color: var(--ink); }
+.brand-mark {
+  width: 32px; height: 32px; border-radius: 8px;
+  background: #252C29; box-shadow: none; padding: 8px 9px;
+  gap: 5px;
+}
+.brand-mark .doc-fold { border-bottom-color: var(--lime); }
+.brand-mark .doc-line { background: #FFFFFF; height: 2px; }
+.brand-mark .doc-line.narrow { background: var(--lime); }
+.local-indicator { color: #496A58; }
+.local-light { background: #71A642; box-shadow: 0 0 0 4px #EDF6E5; }
+.github-link { color: #5B6D60; border-left-color: var(--line); }
+.github-link:hover { color: #274C33; }
+
+/* 左側工具列：預設中性，點選時才亮綠。 */
+.sidebar { background: var(--sidebar-bg); border-color: #DFE6DA; box-shadow: none; }
+.nav-group+.nav-group { border-top-color: #E1E7DD; }
+.nav-group-title { color: #7B887D; }
+.nav-item { position: relative; color: #4B5B4F; }
+.nav-icon { color: #748B75; }
+.nav-anchor { color: #4B5B4F; }
+.nav-item:hover, .nav-anchor:hover {
+  background: #E8F4D9; color: #2D4F31;
+}
+.nav-item.active {
+  background: var(--lime); color: #253421; font-weight: 760;
+  box-shadow: none;
+}
+.nav-item.active::before {
+  content: ""; position: absolute; left: 0; top: 7px; bottom: 7px;
+  width: 3px; border-radius: 0 3px 3px 0; background: #375328;
+}
+.nav-item.active .nav-icon { color: #2D4B27; }
+.sidebar-bottom { border-top-color: #E1E7DD; color: #859185; }
+.breadcrumb, .breadcrumb span { color: #859086; }
+.heading-copy h1 { color: #252C29; }
+.heading-copy p { color: #69776C; }
+.reset-button, .secondary-button {
+  background: #FFFFFF; color: #385A45; border: 1px solid #D7E3CF;
+}
+.reset-button:hover, .secondary-button:hover {
+  background: var(--lime-pale); border-color: #8BAE64; color: #294A32;
+}
+.subtle-button { color: #728274; }
+.subtle-button:hover { color: #315A34; background: #EAF5DE; }
+
+/* 上傳入口 */
+.upload-zone {
+  background: #FFFFFF; border: 1.5px dashed #B7C7B5;
+}
+.upload-zone:hover, .upload-zone.dragover {
+  border-color: #80AC56; background: #F6FBEF;
+}
+.upload-icon { background: #EEF7E7; color: #355B39; }
+.upload-zone strong { color: var(--ink); }
+.upload-subtitle { color: #79877B; }
+.upload-help { color: #8C988C; }
+.browse-button {
+  background: #273B2E; color: #FFFFFF; box-shadow: none;
+}
+.browse-button:hover {
+  background: var(--lime); color: #273B2E;
+}
+
+/* 頁面預覽和檔案資訊 */
+.workspace, .settings, .image-workspace {
+  background: #FFFFFF; border-color: var(--line);
+}
+.files-summary, .pages-count, .file-chip small { color: #7B8D7C; }
+.file-chip { background: #F4F6F2; border-color: #E1E7DB; color: #4E6151; }
+.chip-remove { color: #778D79; }
+.chip-remove:hover { color: #8A3737; background: #F5E9E6; }
+.page-toolbar {
+  background: #F9FAF7; border-top-color: var(--line); border-bottom-color: var(--line);
+}
+.page-toolbar-left b { color: #2B362D; }
+.mini-button, .page-toolbar select {
+  background: #FFFFFF; border-color: #D9E3D4; color: #3F6149;
+}
+.mini-button:hover {
+  background: var(--lime-pale); border-color: #92B96E;
+}
+.toolbar-divider { background: #DCE6D7; }
+.instruction { color: #788779; }
+.page-card { border-color: #DFE6DC; }
+.page-card:hover { box-shadow: 0 4px 15px #273E2820; }
+.page-card.selected {
+  background: #FBFDF8; border-color: #5B8B4F; box-shadow: inset 0 0 0 1px #5B8B4F;
+}
+.page-card.dragover { background: #F3FBEA; border-color: #7FAE47; }
+.page-card .page-preview { background: #EEF1EB; }
+.page-card .page-meta { color: #48604B; }
+.page-source { color: #8B9D8F; }
+.page-card .selection-check { color: transparent; border-color: #A8B7A5; }
+.page-card.selected .selection-check {
+  background: var(--lime); border-color: #68934D; color: #253421;
+}
+.page-icon-button { color: #66826B; }
+.page-icon-button:hover { background: #EAF5DE; color: #365E3A; }
+.empty-pages { color: #8B998D; }
+
+/* 輸出設定 */
+.settings-header b, .files-heading b { color: var(--ink); }
+.setting>label, .setting label { color: #536D58; }
+.setting select, .setting input[type=text], .setting input[type=number] {
+  border-color: #D9E3D4; color: #29382D;
+}
+.setting select:focus, .setting input:focus { border-color: #7FAD53; }
+.segmented { background: #EFF3EB; }
+.segment { color: #617563; }
+.segment[aria-pressed=true] {
+  background: var(--lime); color: #273B2D; box-shadow: none;
+}
+.checkbox-setting, .image-setting-checkbox { color: #607564; }
+.checkbox-setting input, .image-setting-checkbox input,
+.repair-controls input[type=range], .image-settings-grid input[type=range] {
+  accent-color: #6EAA3F;
+}
+.setting-note { color: #718373; }
+.setting-note.warning { color: #8B6532; background: #FFF9EC; border-color: #F1E6D1; }
+.feedback { background: #EDF7E8; color: #335D3C; border-color: #D2E8C4; }
+.feedback.busy { color: #42653F; background: #F1F7EA; border-color: #D7E6CE; }
+.feedback.error { background: #FFF2EF; border-color: #F3D7D0; color: #9A3E35; }
+
+/* 操作列 */
+.action-bar { background: #FFFFFF; border-color: #DCE6D8; box-shadow: 0 -6px 23px #293D2910; }
+.action-info strong { color: var(--ink); }
+.action-info span { color: #7D8F80; }
+.primary-button {
+  background: #273B2E; color: #FFFFFF; border-color: #273B2E;
+  box-shadow: none;
+}
+.primary-button:hover:not(:disabled) {
+  background: var(--lime); border-color: #A4CF5E; color: #263522;
+}
+.primary-button:active:not(:disabled) { background: #B5E758; }
+.primary-button:disabled {
+  background: #C7D0C5; border-color: #C7D0C5; color: #F8FAF5;
+}
+.bottom-note, .footer { color: #89998A; }
+
+/* 圖片處理：畫布維持中性深淺，工具列共用同一組選取色 */
+.image-workspace-bar { border-bottom-color: var(--line); }
+.image-file-label #imageFilename { color: #3A563F; }
+.image-chip-icon { color: #456A4C; background: #EEF5E8; border-color: #D9E8D1; }
+.image-dimensions { color: #829284; }
+.repair-controls { background: #F9FBF6; border-bottom-color: var(--line); }
+.repair-control-group { background: #EEF3E9; border-color: #D8E2D2; }
+.mode-btn { color: #536A58; }
+.mode-btn.active {
+  background: var(--lime); color: #273B2E; box-shadow: none;
+}
+.brush-label, .image-input-note, .image-label-note { color: #607664; }
+.brush-label span, .image-stats strong { color: #4C7F3A; }
+.image-stage {
+  background-color: #E7ECE5;
+  background-image:
+    linear-gradient(45deg,#DDE5DA 25%,transparent 25%),
+    linear-gradient(-45deg,#DDE5DA 25%,transparent 25%),
+    linear-gradient(45deg,transparent 75%,#DDE5DA 75%),
+    linear-gradient(-45deg,transparent 75%,#DDE5DA 75%);
+}
+.page-grid, .image-stage { scrollbar-color: #B7C6B2 transparent; }
+
+/* 動態可停用；不做大面積閃爍、光暈。 */
+@media (prefers-reduced-motion: reduce) {
+  button, a { transition: none !important; }
+}
+@media (max-width:720px) {
+  .sidebar { background: #F7F8F5; }
+  .nav-item { border-color: #E1E8DA; background: #FFFFFF; }
+  .nav-item:hover { background: #EDF7E3; }
+  .nav-item.active { background: var(--lime); border-color: #A4C96C; }
+}
