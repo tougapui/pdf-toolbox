@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#f5f7fa">
+<meta name="description" content="圖片局部修補、壓縮、格式轉換、縮放與裁切。免登入，檔案只在瀏覽器本機處理。">
+<title>圖片工具｜檔案工具箱</title>
+<link rel="stylesheet" href="./style.css">
+<link rel="stylesheet" href="./image-tools.css">
+<script defer src="./image-tools.js"></script>
+</head>
+<body>
+<header class="header"><div class="header-inner">
+<a class="brand" href="./" aria-label="檔案工具箱首頁"><span class="brand-mark"><span class="doc-fold"></span><span class="doc-line"></span><span class="doc-line narrow"></span></span><span>檔案 <b>工具箱</b></span></a>
+<div class="header-right"><span class="local-indicator"><span class="local-light"></span>檔案僅在瀏覽器處理，不會儲存到資料庫</span><a class="github-link" href="https://github.com/tougapui/pdf-toolbox" target="_blank" rel="noopener noreferrer">原始碼 ↗</a></div>
+</div></header>
+<div class="app-layout">
+<aside class="sidebar" aria-label="工具選單">
+<div class="mobile-tools-heading">選擇工具</div>
+<nav id="imageNavigation">
+<div class="nav-group"><div class="nav-group-title">圖片處理</div>
+<button class="nav-item active" type="button" data-image-tool="repair" aria-pressed="true"><span class="nav-icon">✎</span><span>局部修補／去除浮水印</span></button>
+<button class="nav-item" type="button" data-image-tool="compress" aria-pressed="false"><span class="nav-icon">⇣</span><span>壓縮圖片</span></button>
+<button class="nav-item" type="button" data-image-tool="convert" aria-pressed="false"><span class="nav-icon">⇄</span><span>轉換圖片格式</span></button>
+<button class="nav-item" type="button" data-image-tool="resize" aria-pressed="false"><span class="nav-icon">⬚</span><span>調整圖片尺寸</span></button>
+<button class="nav-item" type="button" data-image-tool="crop" aria-pressed="false"><span class="nav-icon">⊞</span><span>裁切圖片</span></button>
+</div>
+<div class="nav-group"><div class="nav-group-title">PDF 工具</div>
+<a class="nav-item nav-anchor" href="./"><span class="nav-icon">▤</span><span>所有 PDF 工具</span></a>
+<a class="nav-item nav-anchor" href="./?tool=compress"><span class="nav-icon">⇣</span><span>壓縮 PDF</span></a>
+<a class="nav-item nav-anchor" href="./?tool=split"><span class="nav-icon">◫</span><span>拆分 PDF</span></a>
+</div>
+</nav>
+<div class="sidebar-bottom">不需要 AI 帳號 · 不需上傳到雲端</div>
+</aside>
+<main class="main-content">
+<div class="main-heading"><div class="heading-copy"><div class="breadcrumb">檔案工具箱 <span>/</span> 圖片處理</div><h1 id="imageToolTitle">圖片局部修補</h1><p id="imageToolDescription">使用筆刷或框選標記想修補的部分，讓周圍影像補入。適合小範圍污點、文字或浮水印。</p></div>
+<button id="resetImage" type="button" class="reset-button" hidden>↶ 重新選圖</button></div>
+
+<section id="imageUpload" class="upload-zone" role="button" tabindex="0" aria-label="上傳圖片">
+<input type="file" id="imageInput" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp" hidden>
+<span class="upload-icon" aria-hidden="true">＋</span><strong>選擇圖片</strong><span class="upload-subtitle">或拖曳 JPG、PNG、WebP 至此</span>
+<span class="upload-help">檔案只在自己的瀏覽器中處理</span>
+<button id="imageBrowse" type="button" class="browse-button">瀏覽圖片 ↗</button>
+</section>
+
+<section id="imageWorkspace" class="image-workspace" hidden>
+<div class="image-workspace-bar"><div class="image-file-label"><span class="image-chip-icon">IMG</span><span id="imageFilename"></span><span id="imageDimensions" class="image-dimensions"></span></div><div class="image-workspace-buttons"><button type="button" id="newImage" class="secondary-button">更換圖片</button><button type="button" id="showOriginal" class="secondary-button" aria-pressed="false">比較原圖</button></div></div>
+
+<div id="repairControls" class="repair-controls">
+<div class="repair-control-group" role="group" aria-label="選取方式"><button class="mode-btn active" type="button" data-draw-mode="brush" aria-pressed="true">✎ 筆刷</button><button class="mode-btn" type="button" data-draw-mode="rect" aria-pressed="false">▢ 框選</button></div>
+<label class="brush-label" for="brushSize">筆刷大小 <span id="brushSizeLabel">28</span></label><input id="brushSize" type="range" min="4" max="120" step="2" value="28">
+<div class="repair-control-actions"><button id="undoSelection" type="button" class="subtle-button">↶ 撤銷選取</button><button id="clearSelection" type="button" class="subtle-button">清除選取</button><button id="undoEdit" type="button" class="subtle-button">回復修補前</button></div>
+</div>
+
+<div class="image-stage" id="imageStage">
+  <div class="image-canvases" id="imageCanvases">
+    <canvas id="imageCanvas" aria-label="圖片預覽"></canvas>
+    <canvas id="selectionCanvas" aria-label="用滑鼠或觸控筆標記範圍"></canvas>
+  </div>
+</div>
+<div id="imageTip" class="instruction image-instruction">用筆刷塗抹或框選要修補的區域，紅色半透明部分就是處理範圍。</div>
+</section>
+
+<section id="imageSettings" class="settings" hidden>
+<div class="settings-header"><b id="imageSettingsTitle">輸出設定</b></div>
+<div id="imageSettingsFields" class="image-settings-grid"></div>
+</section>
+<div id="imageFeedback" class="feedback" role="status" aria-live="polite" hidden></div>
+<div id="imageActionBar" class="action-bar" hidden><div class="action-info"><strong id="imageActionSummary">準備修補</strong><span id="imageActionHint">不使用 AI，效果取決於背景複雜度</span></div><div class="image-action-buttons"><button id="imageApply" type="button" class="primary-button">套用修補 ↗</button><button id="imageDownload" type="button" class="secondary-button image-download-button">下載圖片 ↓</button></div></div>
+<div class="bottom-note">純前端處理：原始檔案不會上傳至伺服器或存入資料庫。局部修補只適合你有權修改的影像，且不會恢復被遮住的真實內容。</div>
+</main></div>
+<footer class="footer">檔案工具箱 <span>·</span> PDF 與圖片本機處理 <span class="footer-version">v3.0</span></footer>
+</body></html>
