@@ -41,13 +41,13 @@
 
 <section id="imageUpload" class="upload-zone" role="button" tabindex="0" aria-label="上傳圖片">
 <input type="file" id="imageInput" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp" hidden>
-<span class="upload-icon" aria-hidden="true">＋</span><strong>選擇圖片</strong><span class="upload-subtitle">或拖曳 JPG、PNG、WebP 至此</span>
-<span class="upload-help">檔案只在自己的瀏覽器中處理</span>
+<span class="upload-icon" aria-hidden="true">＋</span><strong>選擇圖片</strong><span class="upload-subtitle">拖曳圖片，或直接按 Ctrl + V 貼上複製的網頁圖片</span>
+<span class="upload-help">Mac 請使用 ⌘ + V；請複製圖片本身，而不是圖片網址</span>
 <button id="imageBrowse" type="button" class="browse-button">瀏覽圖片 ↗</button>
 </section>
 
 <section id="imageWorkspace" class="image-workspace" hidden>
-<div class="image-workspace-bar"><div class="image-file-label"><span class="image-chip-icon">IMG</span><span id="imageFilename"></span><span id="imageDimensions" class="image-dimensions"></span></div><div class="image-workspace-buttons"><button type="button" id="newImage" class="secondary-button">更換圖片</button><button type="button" id="showOriginal" class="secondary-button" aria-pressed="false">比較原圖</button></div></div>
+<div class="image-workspace-bar"><div class="image-file-label"><span class="image-chip-icon">IMG</span><span id="imageFilename"></span><span id="imageDimensions" class="image-dimensions"></span></div><div class="image-workspace-buttons"><span class="paste-hint">Ctrl + V／⌘ + V 可貼上新圖片</span><button type="button" id="newImage" class="secondary-button">更換圖片</button><button type="button" id="showOriginal" class="secondary-button" aria-pressed="false">比較原圖</button></div></div>
 
 <div id="repairControls" class="repair-controls">
 <div class="repair-control-group" role="group" aria-label="選取方式"><button class="mode-btn active" type="button" data-draw-mode="brush" aria-pressed="true">✎ 筆刷</button><button class="mode-btn" type="button" data-draw-mode="rect" aria-pressed="false">▢ 框選</button></div>
