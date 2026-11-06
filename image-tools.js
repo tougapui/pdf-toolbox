@@ -391,6 +391,20 @@
   ui.browse.addEventListener('click',event=>{event.stopPropagation();ui.input.click();});
   ui.newFile.addEventListener('click',()=>ui.input.click());
   ui.reset.addEventListener('click',resetAll);
+  // 直接接收瀏覽器複製的圖片位元資料，不需先下載或傳送至伺服器。
+  document.addEventListener('paste', event => {
+    if (state.busy) return;
+    const target = event.target;
+    if (target && (target.isContentEditable || target.closest?.('input,textarea,[contenteditable="true"]'))) return;
+    const items = Array.from(event.clipboardData?.items || []);
+    const imageItem = items.find(item => item.kind === 'file' && /^image\/(png|jpeg|webp)$/i.test(item.type));
+    const pasted = imageItem?.getAsFile() || Array.from(event.clipboardData?.files || []).find(file => /^image\/(png|jpeg|webp)$/i.test(file.type));
+    if (!pasted) return;
+    event.preventDefault();
+    const extension = pasted.type === 'image/jpeg' ? 'jpg' : pasted.type === 'image/webp' ? 'webp' : 'png';
+    const file = new File([pasted], '貼上圖片-' + Date.now() + '.' + extension, { type: pasted.type });
+    pickImage([file]);
+  });
   ui.input.addEventListener('change',()=>pickImage(ui.input.files));
   for(const name of ['dragenter','dragover'])ui.upload.addEventListener(name,event=>{event.preventDefault();ui.upload.classList.add('dragover');});
   for(const name of ['dragleave','drop'])ui.upload.addEventListener(name,event=>{event.preventDefault();ui.upload.classList.remove('dragover');});
