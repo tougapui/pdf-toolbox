@@ -12,7 +12,7 @@
     'images-pdf': { title: '圖片轉 PDF', group: '格式轉換', desc: '將 JPG、PNG、WebP 圖片變成 PDF，每張圖片就是一頁。', multi: true, image: true, verb: '下載 PDF', instruction: '可拖曳調整圖片順序，點縮圖取消不需要加入 PDF 的圖片。', groupReorder: true },
     extract: { title: '擷取 PDF 文字', group: '格式轉換', desc: '勾選頁面並將 PDF 內可選取的文字匯出為 TXT。', multi: false, image: false, verb: '下載 TXT', instruction: '勾選要擷取的頁面。掃描照片型 PDF 無法辨識文字。', groupReorder: false },
     watermark: { title: '加浮水印', group: '文件處理', desc: '在指定頁面加入文字浮水印，保留 PDF 原有文字與版面。', multi: false, image: false, verb: '下載加浮水印 PDF', instruction: '勾選要加浮水印的頁面，並在下方輸入浮水印文字。', groupReorder: false },
-    compress: { title: '縮小 PDF（影像型）', group: '文件處理', desc: '重新轉成較小的圖片型 PDF，適合掃描文件；不適合需要保留可選取文字的 PDF。', multi: false, image: false, verb: '壓縮並下載', instruction: '勾選要壓縮的頁面。注意：重新產生的文件會失去可選取文字及超連結。', groupReorder: false }
+    compress: { title: '壓縮 PDF', group: '文件處理', desc: '選擇保留文字的基本最佳化，或掃描／照片專用的影像壓縮，並比較輸出大小。', multi: false, image: false, verb: '壓縮 PDF', instruction: '預設保留所有頁面。保留文字模式不保證縮小；影像型壓縮可能大幅減少掃描文件大小，但會失去可選取文字。', groupReorder: false }
   };
 
   const state = {
@@ -382,10 +382,29 @@
       fields.append(setting('深淺', selectField('watermarkOpacity', [['0.12','淡'],['0.22','中'],['0.36','深']])));
       fields.append(setting('方向', selectField('watermarkRotation', [['-35','斜向'],['0','水平']])));
     } else if (state.tool === 'compress') {
-      fields.append(setting('壓縮程度', selectField('compressQuality', [['small','檔案優先（較模糊）'],['balanced','平衡（建議）'],['clear','畫質優先']])));
+      const mode = selectField('compressMode', [
+        ['structure','保留文字及版面（基本最佳化）'],
+        ['image','掃描文件／圖片型（高壓縮）']
+      ]);
+      fields.append(setting('壓縮模式', mode));
+      const qualitySetting = setting('影像畫質', selectField('compressQuality', [
+        ['small','最小檔案（畫質較低）'],
+        ['balanced','平衡（建議）'],
+        ['clear','畫質優先']
+      ]));
+      fields.append(qualitySetting);
       const warn = document.createElement('p'); warn.className = 'setting-note warning';
-      warn.textContent = '注意：這是「影像型」重新壓縮，所有頁面會變成圖片，可選取文字、書籤及超連結會遺失。輸出不一定比原檔小。若是純文字 PDF，請勿使用這項功能。';
+      const updateCompressionMode = function () {
+        const isImage = mode.value === 'image';
+        qualitySetting.hidden = !isImage;
+        warn.textContent = isImage
+          ? '影像壓縮會把選取頁面全部轉成圖片，會失去可選取文字、超連結與書籤。適合掃描文件，不適合需保留文字的 PDF；也不保證一定縮小。'
+          : '保留文字與向量圖形，僅重新整理 PDF 物件結構。對已壓縮的圖片通常無效，也可能使檔案略微變大；數位簽章及特殊互動功能可能失效。';
+        updateAction();
+      };
+      mode.addEventListener('change', updateCompressionMode);
       fields.append(warn);
+      updateCompressionMode();
     }
     els.settingsFields.replaceChildren(fields);
     els.settings.hidden = !state.sources.length || (!fields.childElementCount);
@@ -610,8 +629,27 @@
   }
   async function outputCompress() {
     const pages = state.pages.filter(function (p) { return p.selected; });
-    if (pages.length > 50) throw new Error('影像壓縮每次最多處理 50 頁，請分批處理。');
-    const presets = { small: { scale: .9, quality: .56 }, balanced: { scale: 1.25, quality: .72 }, clear: { scale: 1.7, quality: .86 } };
+    const file = state.sources[0].file;
+    const originalSize = file.size;
+    const prefix = filename(file);
+    const formatSize = function (size) { return size >= 1048576 ? (size / 1048576).toFixed(2) + ' MB' : Math.round(size / 1024) + ' KB'; };
+    const mode = $('compressMode')?.value || 'structure';
+    if (mode === 'structure') {
+      message('正在整理 PDF 物件結構，保留文字和向量內容…', 'busy');
+      const selectedAll = pages.length === state.pages.length;
+      const doc = selectedAll
+        ? await PDFLib.PDFDocument.load(new Uint8Array(await file.arrayBuffer()), { updateMetadata: false })
+        : await assemble(pages);
+      const optimized = await doc.save({ useObjectStreams: true, addDefaultPage: false });
+      if (selectedAll && optimized.byteLength >= originalSize) {
+        return '這份 PDF 已經相當精簡，保留文字模式未能縮小（原檔 ' + formatSize(originalSize) + '，重新整理後 ' + formatSize(optimized.byteLength) + '）。為避免產生更大的檔案，沒有下載重複檔。可改用「掃描文件／圖片型」，但會失去可選取文字。';
+      }
+      download(optimized, prefix + '_保留文字最佳化.pdf');
+      const diff = originalSize ? Math.round((1 - optimized.byteLength / originalSize) * 1000) / 10 : 0;
+      return '處理完成。原檔 ' + formatSize(originalSize) + ' → ' + formatSize(optimized.byteLength) + '（約減少 ' + diff + '%）。文字與向量圖形會保留；請檢查數位簽章與特殊互動功能。';
+    }
+    if (pages.length > 50) throw new Error('影像型壓縮每次最多處理 50 頁，請分批處理。');
+    const presets = { small: { scale: .85, quality: .50 }, balanced: { scale: 1.15, quality: .68 }, clear: { scale: 1.6, quality: .84 } };
     const preset = presets[$('compressQuality').value];
     const pdf = await PDFLib.PDFDocument.create();
     for (let i = 0; i < pages.length; i += 1) {
@@ -622,13 +660,14 @@
       const sourcePage = await source.pdfjs.getPage(p.index + 1);
       const size = sourcePage.getViewport({ scale: 1 });
       const page = pdf.addPage([size.width, size.height]);
-      page.drawImage(img, { x: 0, y: 0, width: size.width, height: size.height }); sourcePage.cleanup();
+      page.drawImage(img, { x: 0, y: 0, width: size.width, height: size.height });
+      sourcePage.cleanup();
     }
-    const bytes = await pdf.save();
-    const before = state.sources[0].file.size;
-    download(bytes, filename(state.sources[0].file) + '_影像壓縮.pdf');
-    const percent = Math.round((1 - bytes.byteLength / before) * 100);
-    return '已輸出圖片型 PDF。' + (percent > 0 ? '檔案約縮小 ' + percent + '%。' : '提醒：輸出檔案並未比原檔更小。') + '可選取文字與超連結已不保留。';
+    const bytes = await pdf.save({ useObjectStreams: true });
+    download(bytes, prefix + '_影像壓縮.pdf');
+    const percent = originalSize ? Math.round((1 - bytes.byteLength / originalSize) * 1000) / 10 : 0;
+    return '已輸出影像型 PDF：原檔 ' + formatSize(originalSize) + ' → ' + formatSize(bytes.byteLength)
+      + '（' + (percent >= 0 ? '縮小 ' + percent + '%' : '變大 ' + Math.abs(percent) + '%') + '）。注意：可選取文字與超連結不再保留。';
   }
   async function process() {
     if (state.busy || els.run.disabled || !ready()) return;
@@ -679,5 +718,6 @@
   ['dragleave','drop'].forEach(function (evt) { els.upload.addEventListener(evt, function (ev) { ev.preventDefault(); els.upload.classList.remove('dragover'); }); });
   els.upload.addEventListener('drop', function (ev) { if (!state.busy) uploadFiles(ev.dataTransfer.files); });
   if (window.pdfjsLib) pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-  chooseTool('merge');
+  const initialTool = new URLSearchParams(window.location.search).get('tool');
+  chooseTool(TOOLS[initialTool] ? initialTool : 'merge');
 }());
