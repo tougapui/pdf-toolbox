@@ -14,3 +14,26 @@
 @media(prefers-reduced-motion:reduce){*{transition:none!important}}
 /* 圖片工具連結沿用 PDF 工具選單外觀 */
 .nav-anchor{text-decoration:none;display:flex;align-items:center}.nav-anchor:hover{text-decoration:none;background:#f0f6fb;color:#1d5f8b}
+
+
+/* 所有 PDF 工具共用的放大預覽 */
+.page-card .page-zoom-button{position:absolute;z-index:3;top:9px;right:9px;width:28px;height:28px;display:grid;place-items:center;padding:0;border:1px solid #c7d4c4;border-radius:7px;background:#fff;color:#435d48;cursor:pointer;box-shadow:0 1px 4px #233c2420}
+.page-card .page-zoom-button:hover{background:#e9f3e3;border-color:#75966c;color:#223b2a}
+.page-card .page-zoom-button:focus-visible,.page-viewer button:focus-visible{outline:2px solid #729854;outline-offset:2px}
+.page-viewer{box-sizing:border-box;position:fixed;inset:0;margin:auto;padding:0;width:min(1100px,calc(100vw - 36px));height:min(920px,calc(100dvh - 36px));max-width:none;max-height:none;background:#f2f4ef;color:#24392c;border:1px solid #d5dfd1;border-radius:12px;overflow:hidden;box-shadow:0 16px 80px #0005}
+.page-viewer[open]{display:flex;flex-direction:column}
+.page-viewer::backdrop{background:#19221dc9}
+body:has(.page-viewer[open]){overflow:hidden}
+.page-viewer-header{flex:none;display:flex;justify-content:space-between;align-items:center;gap:8px;padding:10px 14px;background:#fff;border-bottom:1px solid #d9e1d4}
+.page-viewer-header strong{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:14px}
+.page-viewer-controls{display:flex;align-items:center;gap:5px;flex:none}
+.page-viewer-controls button{display:grid;place-items:center;min-width:32px;height:34px;padding:0 8px;color:#314936;background:#fff;border:1px solid #d9e2d4;border-radius:6px;font-size:20px;line-height:1;cursor:pointer}
+.page-viewer-controls button:hover:not(:disabled){background:#e9f3e3}
+.page-viewer-controls button:disabled{opacity:.35;cursor:default}
+.page-viewer-controls button[data-fit]{font-size:12px;min-width:68px}
+.page-viewer-controls button[data-close]{margin-left:5px;font-size:25px;border:0}
+.page-viewer-separator{width:1px;height:22px;background:#d9e2d4;margin:0 2px}
+.page-viewer-stage{flex:1;min-height:0;overflow:auto;overscroll-behavior:contain}
+.page-viewer-content{box-sizing:border-box;min-width:100%;min-height:100%;width:max-content;display:flex;align-items:center;justify-content:center;padding:16px;color:#647568;font-size:14px}
+.page-viewer-content canvas,.page-viewer-content img{display:block;flex:none;max-width:none;max-height:none;background:white;box-shadow:0 2px 14px #24392c24}
+@media(max-width:600px){.page-viewer{width:calc(100vw - 12px);height:calc(100dvh - 12px)}.page-viewer-header{flex-wrap:wrap;padding:8px 10px}.page-viewer-controls{margin-left:auto;gap:3px}.page-viewer-controls button{min-width:30px;padding:0 6px}}
