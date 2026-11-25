@@ -225,7 +225,13 @@
       num.textContent = '第 ' + (p.index + 1) + ' 頁' + turnLabel;
       const from = document.createElement('span'); from.className = 'page-source'; from.textContent = state.sources.length > 1 ? filename(source.file).slice(0, 11) : (i + 1) + ' / ' + state.pages.length;
       meta.append(num, from);
-      card.append(preview, meta);
+      const zoom = document.createElement('button');
+      zoom.type = 'button'; zoom.className = 'page-zoom-button';
+      zoom.title = '放大預覽'; zoom.setAttribute('aria-label', '放大預覽第 ' + (p.index + 1) + ' 頁');
+      zoom.innerHTML = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 4.5 4.5M8 10.5h5m-2.5-2.5v5"/></svg>';
+      zoom.addEventListener('click', function (ev) { ev.stopPropagation(); if (!state.busy) openPagePreview(p.id, zoom); });
+      zoom.addEventListener('dragstart', function (ev) { ev.preventDefault(); ev.stopPropagation(); });
+      card.append(preview, zoom, meta);
       if (state.tool === 'organize') {
         const actions = document.createElement('div'); actions.className = 'page-card-actions';
         actions.append(pageAction('↻', '順時針旋轉 90 度', function () { p.turn = (p.turn + 90) % 360; renderPages(); }, false));
@@ -271,6 +277,102 @@
     } else {
       els.grid.querySelectorAll('.page-card').forEach(requestThumbnail);
     }
+  }
+  // 共用頁面放大預覽：只讀取目前頁面，不改變勾選、順序或原始檔案。
+  let pageViewer = null;
+  function createPageViewer() {
+    const dialog = document.createElement('dialog');
+    dialog.className = 'page-viewer';
+    dialog.setAttribute('aria-labelledby', 'pageViewerTitle');
+    dialog.innerHTML = '<div class="page-viewer-header"><strong id="pageViewerTitle"></strong><div class="page-viewer-controls"><button type="button" data-prev aria-label="上一頁" title="上一頁">‹</button><button type="button" data-next aria-label="下一頁" title="下一頁">›</button><span class="page-viewer-separator"></span><button type="button" data-minus aria-label="縮小" title="縮小">−</button><button type="button" data-fit aria-label="符合視窗" title="符合視窗">符合視窗</button><button type="button" data-plus aria-label="放大" title="放大">＋</button><button type="button" data-close aria-label="關閉預覽" title="關閉預覽">×</button></div></div><div class="page-viewer-stage"><div class="page-viewer-content"></div></div>';
+    document.body.append(dialog);
+    const v = { dialog, stage: dialog.querySelector('.page-viewer-stage'), content: dialog.querySelector('.page-viewer-content'), title: dialog.querySelector('strong'), index: 0, zoom: 1, generation: 0, task: null, trigger: null, media: null, width: 0, height: 0 };
+    const q = function (key) { return dialog.querySelector('[data-' + key + ']'); };
+    v.prev = q('prev'); v.next = q('next'); v.minus = q('minus'); v.plus = q('plus'); v.fit = q('fit');
+    v.prev.addEventListener('click', function () { showPreviewPage(v.index - 1); });
+    v.next.addEventListener('click', function () { showPreviewPage(v.index + 1); });
+    v.minus.addEventListener('click', function () { v.zoom = Math.max(.5, v.zoom / 1.35); sizePagePreview(); });
+    v.plus.addEventListener('click', function () { v.zoom = Math.min(4, v.zoom * 1.35); sizePagePreview(); });
+    v.fit.addEventListener('click', function () { v.zoom = 1; sizePagePreview(); v.stage.scrollTo(0, 0); });
+    q('close').addEventListener('click', function () { dialog.close(); });
+    dialog.addEventListener('click', function (ev) { if (ev.target === dialog) dialog.close(); });
+    dialog.addEventListener('keydown', function (ev) {
+      if (ev.key === 'ArrowLeft' || ev.key === 'ArrowRight') {
+        ev.preventDefault(); showPreviewPage(v.index + (ev.key === 'ArrowLeft' ? -1 : 1));
+      }
+    });
+    dialog.addEventListener('close', function () {
+      v.generation++;
+      if (v.task) { v.task.cancel(); v.task = null; }
+      v.content.replaceChildren(); v.media = null;
+      if (v.trigger && v.trigger.isConnected) v.trigger.focus({ preventScroll: true });
+    });
+    window.addEventListener('resize', function () { if (dialog.open) sizePagePreview(); });
+    return v;
+  }
+  function sizePagePreview() {
+    const v = pageViewer;
+    if (!v || !v.media || !v.width || !v.height) return;
+    const fit = Math.min(Math.max(1, v.stage.clientWidth - 32) / v.width, Math.max(1, v.stage.clientHeight - 32) / v.height, 1);
+    v.media.style.width = Math.max(1, Math.round(v.width * fit * v.zoom)) + 'px';
+    v.media.style.height = 'auto';
+    v.minus.disabled = v.zoom <= .5; v.plus.disabled = v.zoom >= 4;
+    v.fit.textContent = v.zoom === 1 ? '符合視窗' : Math.round(v.zoom * 100) + '%';
+  }
+  function openPagePreview(id, trigger) {
+    const index = state.pages.findIndex(function (p) { return p.id === id; });
+    if (index < 0) return;
+    if (!pageViewer) pageViewer = createPageViewer();
+    const v = pageViewer;
+    v.trigger = trigger;
+    if (!v.dialog.open) v.dialog.showModal();
+    showPreviewPage(index);
+  }
+  async function showPreviewPage(index) {
+    const v = pageViewer;
+    if (!v || !v.dialog.open || index < 0 || index >= state.pages.length) return;
+    const p = state.pages[index], src = sourceFor(p);
+    if (!src) return;
+    const generation = ++v.generation;
+    if (v.task) { v.task.cancel(); v.task = null; }
+    v.index = index; v.zoom = 1; v.media = null;
+    v.title.textContent = '第 ' + (index + 1) + ' / ' + state.pages.length + ' 頁' + (state.sources.length > 1 ? ' · ' + src.file.name : '');
+    v.prev.disabled = index === 0; v.next.disabled = index === state.pages.length - 1;
+    v.minus.disabled = v.plus.disabled = v.fit.disabled = true; v.fit.textContent = '符合視窗';
+    v.content.textContent = '正在載入清晰預覽…';
+    v.stage.scrollTo(0, 0);
+    let pdfPage = null;
+    try {
+      let media;
+      if (src.previewURL) {
+        const img = new Image(); img.alt = '原始圖片預覽'; img.src = src.previewURL;
+        await img.decode();
+        if (generation !== v.generation) return;
+        media = img; v.width = img.naturalWidth; v.height = img.naturalHeight;
+      } else {
+        pdfPage = await src.pdfjs.getPage(p.index + 1);
+        if (generation !== v.generation) return;
+        const rotation = (pdfPage.rotate + p.turn) % 360;
+        const base = pdfPage.getViewport({ scale: 1, rotation });
+        const scale = Math.min(3, 3200 / Math.max(base.width, base.height), Math.sqrt(10000000 / (base.width * base.height)));
+        const viewport = pdfPage.getViewport({ scale, rotation });
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.max(1, Math.ceil(viewport.width)); canvas.height = Math.max(1, Math.ceil(viewport.height));
+        canvas.setAttribute('role', 'img'); canvas.setAttribute('aria-label', '第 ' + (p.index + 1) + ' 頁預覽');
+        const ctx = canvas.getContext('2d', { alpha: false });
+        if (!ctx) throw new Error('無法顯示預覽');
+        const task = pdfPage.render({ canvasContext: ctx, viewport, background: '#fff' });
+        v.task = task;
+        await task.promise;
+        if (v.task === task) v.task = null;
+        if (generation !== v.generation) return;
+        media = canvas; v.width = canvas.width; v.height = canvas.height;
+      }
+      if (generation !== v.generation || !v.dialog.open) return;
+      v.media = media; v.content.replaceChildren(media); v.fit.disabled = false; sizePagePreview();
+    } catch (err) {
+      if (generation === v.generation && v.dialog.open) v.content.textContent = '無法載入此頁預覽，請關閉後再試一次。';
+    } finally { if (pdfPage) pdfPage.cleanup(); }
   }
   function pageAction(symbol, title, callback, danger) {
     const btn = document.createElement('button'); btn.type = 'button'; btn.className = 'page-icon-button' + (danger ? ' delete' : '');
