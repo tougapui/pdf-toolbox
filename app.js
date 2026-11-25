@@ -291,8 +291,39 @@
     v.prev = q('prev'); v.next = q('next'); v.minus = q('minus'); v.plus = q('plus'); v.fit = q('fit');
     v.prev.addEventListener('click', function () { showPreviewPage(v.index - 1); });
     v.next.addEventListener('click', function () { showPreviewPage(v.index + 1); });
-    v.minus.addEventListener('click', function () { v.zoom = Math.max(.5, v.zoom / 1.35); sizePagePreview(); });
-    v.plus.addEventListener('click', function () { v.zoom = Math.min(4, v.zoom * 1.35); sizePagePreview(); });
+    v.minus.addEventListener('click', function () { zoomPagePreview(v.zoom / 1.35); });
+    v.plus.addEventListener('click', function () { zoomPagePreview(v.zoom * 1.35); });
+    // 滾輪以指標位置為中心縮放；拖曳直接控制水平與垂直捲動。
+    v.stage.addEventListener('wheel', function (ev) {
+      if (!v.media) return;
+      ev.preventDefault();
+      const delta = ev.deltaY * (ev.deltaMode === 1 ? 16 : ev.deltaMode === 2 ? v.stage.clientHeight : 1);
+      if (delta) zoomPagePreview(v.zoom * Math.exp(-Math.max(-300, Math.min(300, delta)) * .0025), ev.clientX, ev.clientY);
+    }, { passive: false });
+    let drag = null;
+    function stopDrag(ev) {
+      if (!drag || (ev && ev.pointerId !== drag.id)) return;
+      const id = drag.id; drag = null;
+      v.stage.classList.remove('is-panning');
+      if (v.stage.hasPointerCapture(id)) v.stage.releasePointerCapture(id);
+    }
+    v.stage.addEventListener('pointerdown', function (ev) {
+      if (!v.media || ev.pointerType !== 'mouse' || ev.button !== 0 || drag || !v.media.contains(ev.target)) return;
+      if (v.stage.scrollWidth <= v.stage.clientWidth && v.stage.scrollHeight <= v.stage.clientHeight) return;
+      ev.preventDefault();
+      drag = { id: ev.pointerId, x: ev.clientX, y: ev.clientY, left: v.stage.scrollLeft, top: v.stage.scrollTop };
+      v.stage.setPointerCapture(ev.pointerId);
+      v.stage.classList.add('is-panning');
+    });
+    v.stage.addEventListener('pointermove', function (ev) {
+      if (!drag || ev.pointerId !== drag.id) return;
+      if (!(ev.buttons & 1)) { stopDrag(ev); return; }
+      v.stage.scrollLeft = drag.left - (ev.clientX - drag.x);
+      v.stage.scrollTop = drag.top - (ev.clientY - drag.y);
+    });
+    ['pointerup','pointercancel','lostpointercapture'].forEach(function (type) { v.stage.addEventListener(type, stopDrag); });
+    v.stage.addEventListener('dragstart', function (ev) { ev.preventDefault(); });
+    v.stopDrag = stopDrag;
     v.fit.addEventListener('click', function () { v.zoom = 1; sizePagePreview(); v.stage.scrollTo(0, 0); });
     q('close').addEventListener('click', function () { dialog.close(); });
     dialog.addEventListener('click', function (ev) { if (ev.target === dialog) dialog.close(); });
@@ -303,6 +334,7 @@
     });
     dialog.addEventListener('close', function () {
       v.generation++;
+      v.stopDrag(); v.stage.classList.remove('can-pan');
       if (v.task) { v.task.cancel(); v.task = null; }
       v.content.replaceChildren(); v.media = null;
       if (v.trigger && v.trigger.isConnected) v.trigger.focus({ preventScroll: true });
@@ -318,6 +350,25 @@
     v.media.style.height = 'auto';
     v.minus.disabled = v.zoom <= .5; v.plus.disabled = v.zoom >= 4;
     v.fit.textContent = v.zoom === 1 ? '符合視窗' : Math.round(v.zoom * 100) + '%';
+    v.stage.classList.toggle('can-pan', v.stage.scrollWidth > v.stage.clientWidth || v.stage.scrollHeight > v.stage.clientHeight);
+  }
+  function zoomPagePreview(nextZoom, x, y) {
+    const v = pageViewer;
+    if (!v || !v.media) return;
+    const next = Math.max(.5, Math.min(4, nextZoom));
+    if (next === v.zoom) return;
+    const stage = v.stage.getBoundingClientRect();
+    const before = v.media.getBoundingClientRect();
+    // 記住指標對應的文件座標，縮放後再將同一點移回原位置。
+    const px = Number.isFinite(x) ? x : stage.left + v.stage.clientWidth / 2;
+    const py = Number.isFinite(y) ? y : stage.top + v.stage.clientHeight / 2;
+    const fx = Math.max(0, Math.min(1, (px - before.left) / before.width));
+    const fy = Math.max(0, Math.min(1, (py - before.top) / before.height));
+    v.zoom = next;
+    sizePagePreview();
+    const after = v.media.getBoundingClientRect();
+    v.stage.scrollLeft += after.left + fx * after.width - px;
+    v.stage.scrollTop += after.top + fy * after.height - py;
   }
   function openPagePreview(id, trigger) {
     const index = state.pages.findIndex(function (p) { return p.id === id; });
@@ -335,6 +386,7 @@
     if (!src) return;
     const generation = ++v.generation;
     if (v.task) { v.task.cancel(); v.task = null; }
+    v.stopDrag(); v.stage.classList.remove('can-pan');
     v.index = index; v.zoom = 1; v.media = null;
     v.title.textContent = '第 ' + (index + 1) + ' / ' + state.pages.length + ' 頁' + (state.sources.length > 1 ? ' · ' + src.file.name : '');
     v.prev.disabled = index === 0; v.next.disabled = index === state.pages.length - 1;
